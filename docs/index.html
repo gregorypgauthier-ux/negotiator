@@ -1,1 +1,1435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Negotiation Costing App</title>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+
+    <style>
+        /* --- Basic Setup & Resets --- */
+        :root {
+            --brand-blue: #005a9c;
+            --brand-dark: #2a2a2a;
+            --brand-light: #f4f7fa;
+            --brand-grey: #6b7280;
+            --border-color: #d1d5db;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --radius: 0.375rem;
+            --danger: #dc2626;
+            --success: #16a34a;
+        }
+        [x-cloak] { display: none !important; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--brand-light);
+            color: var(--brand-dark);
+            margin: 0;
+            padding: 0;
+            line-height: 1.5;
+        }
+        input, select, button, textarea {
+            font-family: inherit;
+            font-size: 1rem;
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 0.75rem;
+        }
+        button {
+            cursor: pointer;
+            background-color: var(--brand-blue);
+            color: white;
+            font-weight: 600;
+            border: 0;
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: #004475; }
+        button.secondary {
+            background-color: var(--brand-grey);
+        }
+        button.secondary:hover { background-color: #5a626f; }
+        button.danger {
+            background-color: var(--danger);
+        }
+        button.danger:hover { background-color: #b91c1c; }
+        h1, h2, h3, h4 { margin: 0; font-weight: 600; }
+        h2 { font-size: 1.5rem; }
+        h3 { font-size: 1.25rem; }
+        h4 { font-size: 1.1rem; }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+        
+        /* --- App Layout --- */
+        .app-header {
+            background-color: white;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .app-header h1 { font-size: 1.5rem; color: var(--brand-blue); }
+        .card {
+            background-color: white;
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            background-color: #f9fafb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card-content { padding: 1.5rem; }
+        .card-content .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+        }
+        .tab {
+            padding: 0.75rem 1.25rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            font-weight: 500;
+            color: var(--brand-grey);
+        }
+        .tab.active {
+            color: var(--brand-blue);
+            border-bottom-color: var(--brand-blue);
+        }
+
+        /* --- Dashboard --- */
+        .bargain-card {
+            padding: 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: box-shadow 0.2s;
+        }
+        .bargain-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+        .bargain-card h3 {
+            font-weight: 600;
+            color: var(--brand-blue);
+            cursor: pointer;
+        }
+        .bargain-card .status {
+            font-size: 0.9rem;
+            color: var(--brand-grey);
+        }
+
+        /* --- 3-Column Comparison --- */
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .comparison-table th, .comparison-table td {
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            text-align: left;
+            vertical-align: top;
+        }
+        .comparison-table th {
+            background-color: #f9fafb;
+            font-weight: 600;
+        }
+        .col-baseline { color: var(--brand-grey); }
+        .col-employer { color: #057a55; }
+        .col-union { color: #c81e1e; }
+        .comparison-table .total-row td {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+        .cost-increase {
+            font-size: 0.9rem;
+            font-weight: 400;
+            color: var(--brand-grey);
+        }
+        
+        /* --- Proposal Log --- */
+        .proposal-log-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        .proposal-log-table th, .proposal-log-table td {
+            border: 1px solid var(--border-color);
+            padding: 0.75rem;
+            text-align: left;
+        }
+        .proposal-log-table th { background-color: #f9fafb; }
+        .proposal-log-table .notes {
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 0.9rem;
+        }
+
+        /* --- Forms & Modals --- */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .form-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        .form-row > * { flex: 1; }
+        .form-row .fixed { flex: 0 0 auto; }
+        
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgb(0 0 0 / 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            padding: 1rem;
+        }
+        .modal-content {
+            background-color: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            width: 100%;
+            max-width: 900px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            background-color: #f9fafb;
+            text-align: right;
+        }
+        
+        /* --- Responsive & Utility --- */
+        .text-right { text-align: right; }
+        .mt-1 { margin-top: 0.25rem; }
+        .mt-2 { margin-top: 0.5rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mr-2 { margin-right: 0.5rem; }
+        .space-x-2 > * + * { margin-left: 0.5rem; }
+        
+        @media (max-width: 768px) {
+            .card-content .grid {
+                grid-template-columns: 1fr;
+            }
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+                align-items: stretch;
+            }
+            .form-row > * { margin-bottom: 1rem; }
+            .comparison-table { table-layout: auto; }
+            .comparison-table th, .comparison-table td {
+                padding: 0.5rem;
+                font-size: 0.9rem;
+            }
+            .comparison-table .total-row td { font-size: 1rem; }
+        }
+
+        /* --- Print Styles --- */
+        @media print {
+            body {
+                background-color: white;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .app-header {
+                display: none;
+            }
+            .container {
+                padding: 0;
+                margin: 0;
+                max-width: 100%;
+            }
+            .card {
+                border: none;
+                box-shadow: none;
+                page-break-inside: avoid;
+            }
+            .card-content {
+                padding: 0;
+            }
+            .comparison-table {
+                font-size: 10pt;
+            }
+            .comparison-table th, .comparison-table td {
+                padding: 0.5rem;
+            }
+            #proposalChart {
+                max-height: 300px !important;
+            }
+            .print-header {
+                display: block !important;
+                text-align: center;
+                margin-bottom: 2rem;
+            }
+            .print-header h1 {
+                font-size: 2rem;
+            }
+            .print-header h2 {
+                font-size: 1.5rem;
+                color: var(--brand-grey);
+                font-weight: 500;
+            }
+        }
+        .print-header { display: none; }
+
+    </style>
+    
+    <script>
+        // Wait for Alpine to be ready before defining the component
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('app', negotiationApp);
+        });
+
+        function negotiationApp() {
+            return {
+                // --- STATE --- //
+                bargains: [],
+                currentView: 'dashboard', // 'dashboard' or 'bargain'
+                currentBargainId: null,
+                bargainViewTab: 'proposals', // 'proposals', 'roster', 'config'
+                isAddingBargain: false,
+                newBargain: { name: '', years: 3 },
+                editingProposal: null, // Holds the proposal object being edited
+                proposalTab: 'wages', // 'wages', 'health', 'other'
+                proposalChart: null,
+
+                // --- COMPUTED PROPERTIES (Getters) --- //
+                get currentBargain() {
+                    return this.bargains.find(b => b.id === this.currentBargainId) || null;
+                },
+                
+                // --- LIFECYCLE & DATA --- //
+                init() {
+                    // Added try...catch block to prevent crash on load
+                    try {
+                        // Load data from localStorage
+                        const savedData = localStorage.getItem('negotiationApp');
+                        if (savedData) {
+                            this.bargains = JSON.parse(savedData);
+                        }
+                    } catch (e) {
+                        console.error("Error parsing saved data, starting fresh.", e);
+                        alert("Could not load saved data. It might be corrupted. Starting with a blank slate.");
+                        this.bargains = [];
+                        localStorage.removeItem('negotiationApp');
+                    }
+                    
+                    // Auto-save any changes to data
+                    this.$watch('bargains', () => this.saveData(), { deep: true });
+                },
+                saveData() {
+                    try {
+                        localStorage.setItem('negotiationApp', JSON.stringify(this.bargains));
+                        console.log('Data saved.');
+                        // If we are in a bargain, refresh the chart
+                        if (this.currentView === 'bargain') {
+                            this.updateChart();
+                        }
+                    } catch (e) {
+                        console.error("Error saving data to localStorage.", e);
+                        alert("Error saving data. Your browser storage might be full.");
+                    }
+                },
+
+                // --- DASHBOARD METHODS --- //
+                addNewBargain() {
+                    if (!this.newBargain.name || !this.newBargain.years) {
+                        alert('Please enter a name and duration.');
+                        return;
+                    }
+                    
+                    const newBargain = {
+                        id: Date.now(),
+                        name: this.newBargain.name,
+                        status: 'Prepping',
+                        config: {
+                            years: parseInt(this.newBargain.years) || 3,
+                            baselineRoster: [
+                                { id: Date.now(), name: 'Default Classification', wage: 25.00, fte: 10, hours: 2080 }
+                            ],
+                            otAssumptions: [
+                                { id: Date.now(), name: 'Time-and-a-Half', percentHours: 5.0 }
+                            ]
+                        },
+                        proposals: []
+                    };
+                    
+                    // Create the mandatory "Baseline" proposal
+                    newBargain.proposals.push(this.createBlankProposal(newBargain, 'Baseline'));
+                    
+                    this.bargains.push(newBargain);
+                    this.isAddingBargain = false;
+                    this.newBargain = { name: '', years: 3 };
+                    this.viewBargain(newBargain.id);
+                },
+                viewBargain(id) {
+                    this.currentBargainId = id;
+                    this.currentView = 'bargain';
+                    this.bargainViewTab = 'proposals';
+                    
+                    // Chart needs a tick to update after the canvas is visible
+                    this.$nextTick(() => {
+                        this.updateChart();
+                    });
+                },
+                deleteBargain(id) {
+                    if (confirm('Are you sure you want to delete this entire bargain and all its data? This cannot be undone.')) {
+                        this.bargains = this.bargains.filter(b => b.id !== id);
+                    }
+                },
+                getLastProposalDate(bargain) {
+                    if (!bargain.proposals || bargain.proposals.length === 0) return 'N/A';
+                    // Find the most recent, non-baseline proposal
+                    const sortedProposals = [...bargain.proposals]
+                        .filter(p => p.party !== 'Baseline')
+                        .sort((a, b) => new Date(b.date) - new Date(a.date));
+                    return sortedProposals.length > 0 ? sortedProposals[0].date : 'No proposals yet';
+                },
+
+                // --- ROSTER & CONFIG METHODS --- //
+                addRosterRow() {
+                    this.currentBargain.config.baselineRoster.push({
+                        id: Date.now(), name: '', wage: 20.00, fte: 1, hours: 2080
+                    });
+                },
+                removeRosterRow(index) {
+                    this.currentBargain.config.baselineRoster.splice(index, 1);
+                },
+                addOtAssumption() {
+                    this.currentBargain.config.otAssumptions.push({
+                        id: Date.now(), name: 'New OT', percentHours: 1.0
+                    });
+                    // Also update the baseline proposal
+                    this.getBaselineProposal().costs.overtime = this.generateOtCosts(this.currentBargain);
+                },
+                removeOtAssumption(index) {
+                    this.currentBargain.config.otAssumptions.splice(index, 1);
+                    this.getBaselineProposal().costs.overtime = this.generateOtCosts(this.currentBargain);
+                },
+
+                // --- PROPOSAL METHODS --- //
+                createBlankProposal(bargain, party) {
+                    // This creates a new proposal object, pre-filled with the correct number
+                    // of years for wages and inheriting baseline costs for other items.
+                    const baseline = bargain.proposals.find(p => p.party === 'Baseline');
+                    
+                    // Deep copy baseline costs
+                    const newCosts = baseline ? JSON.parse(JSON.stringify(baseline.costs)) : {
+                        wages: [], health: { type: 'monthly', value: 0 },
+                        pension: { type: 'percent', value: 0 },
+                        pto: { holidays: 0, vacation: 0, sick: 0 },
+                        stipends: [], overtime: []
+                    };
+                    
+                    // (Re)generate wage array for correct number of years
+                    newCosts.wages = [];
+                    for (let i = 0; i < bargain.config.years; i++) {
+                        newCosts.wages.push({ type: 'percent', value: 0 });
+                    }
+                    
+                    // (Re)generate OT array to match config
+                    newCosts.overtime = this.generateOtCosts(bargain, baseline);
+                    
+                    return {
+                        id: Date.now(),
+                        party: party,
+                        date: new Date().toISOString().split('T')[0],
+                        notes: '',
+                        costs: newCosts
+                    };
+                },
+                generateOtCosts(bargain, baselineProposal) {
+                    // Copies multipliers from baseline if it exists
+                    const baselineOT = baselineProposal ? baselineProposal.costs.overtime : [];
+                    return bargain.config.otAssumptions.map(ot => {
+                        const existing = baselineOT.find(bot => bot.name === ot.name);
+                        return {
+                            id: ot.id,
+                            name: ot.name,
+                            multiplier: existing ? existing.multiplier : 1.5 // default 1.5x
+                        };
+                    });
+                },
+                openProposalEditor(proposal = null) {
+                    if (proposal) {
+                        // Edit existing: deep copy the proposal to avoid
+                        // changing data before hitting "save"
+                        this.editingProposal = JSON.parse(JSON.stringify(proposal));
+                    } else {
+                        // Add new: create a blank one
+                        this.editingProposal = this.createBlankProposal(this.currentBargain, 'Employer');
+                    }
+                    this.proposalTab = 'wages';
+                },
+                saveProposal() {
+                    if (!this.editingProposal.date || !this.editingProposal.party) {
+                        alert('Please select a party and a date.');
+                        return;
+                    }
+                    
+                    const existingIndex = this.currentBargain.proposals.findIndex(p => p.id === this.editingProposal.id);
+                    
+                    if (existingIndex > -1) {
+                        // Update existing
+                        this.currentBargain.proposals[existingIndex] = JSON.parse(JSON.stringify(this.editingProposal));
+                    } else {
+                        // Add new
+                        this.currentBargain.proposals.push(JSON.parse(JSON.stringify(this.editingProposal)));
+                    }
+                    
+                    this.editingProposal = null;
+                    // saveData() is called automatically by the $watch
+                },
+                deleteProposal(id) {
+                    if (confirm('Are you sure you want to delete this proposal?')) {
+                        this.currentBargain.proposals = this.currentBargain.proposals.filter(p => p.id !== id);
+                    }
+                },
+
+                // --- GETTERS & FORMATTERS --- //
+                formatCurrency(value) {
+                    if (value === null || typeof value === 'undefined' || isNaN(value)) value = 0;
+                    return value.toLocaleString('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0
+                    });
+                },
+                getBaselineProposal() {
+                    if (!this.currentBargain) return null;
+                    const baseline = this.currentBargain.proposals.find(p => p.party === 'Baseline');
+                    
+                    // This ensures the baseline proposal's OT/stipends always match the config
+                    if (baseline && this.currentBargain.config.otAssumptions) {
+                        const currentOtIds = baseline.costs.overtime.map(ot => ot.id).sort();
+                        const configOtIds = this.currentBargain.config.otAssumptions.map(ot => ot.id).sort();
+                        if (currentOtIds.join(',') !== configOtIds.join(',')) {
+                            baseline.costs.overtime = this.generateOtCosts(this.currentBargain, baseline);
+                        }
+                    }
+                    return baseline;
+                },
+                getLatestProposal(party) {
+                    if (!this.currentBargain) return null;
+                    const proposals = this.currentBargain.proposals
+                        .filter(p => p.party === party)
+                        .sort((a, b) => new Date(b.date) - new Date(a.date)); // Newest first
+                    return proposals.length > 0 ? proposals[0] : null;
+                },
+
+                // --- BASELINE STATS CALCULATION --- //
+                getBaselineStats() {
+                    if (!this.currentBargain) return { totalFTE: 0, totalHours: 0, totalPayroll: 0, avgWage: 0 };
+                    
+                    let totalFTE = 0;
+                    let totalHours = 0;
+                    let totalPayroll = 0;
+
+                    this.currentBargain.config.baselineRoster.forEach(row => {
+                        totalFTE += parseFloat(row.fte) || 0;
+                        totalHours += (parseFloat(row.fte) || 0) * (parseFloat(row.hours) || 0);
+                        totalPayroll += (parseFloat(row.fte) || 0) * (parseFloat(row.hours) || 0) * (parseFloat(row.wage) || 0);
+                    });
+                    
+                    const avgWage = totalHours > 0 ? totalPayroll / totalHours : 0;
+                    return { totalFTE, totalHours, totalPayroll, avgWage };
+                },
+
+                // --- !!! CORE CALCULATION ENGINE !!! --- //
+                // This is the heart of the app.
+                
+                _memoizedCalculations: new Map(), // Cache for performance
+                
+                calculateProposalCost(proposal) {
+                    if (!proposal || !this.currentBargain) {
+                        return Array(this.currentBargain?.config?.years || 1).fill(this.getEmptyYearSummary());
+                    }
+                    
+                    // Use cache
+                    const cacheKey = `${proposal.id}-${JSON.stringify(proposal.costs)}-${JSON.stringify(this.currentBargain.config)}`;
+                    if (this._memoizedCalculations.has(cacheKey)) {
+                        return this._memoizedCalculations.get(cacheKey);
+                    }
+
+                    const baselineStats = this.getBaselineStats();
+                    let lastYearRoster = JSON.parse(JSON.stringify(this.currentBargain.config.baselineRoster));
+                    const yearlySummaries = [];
+
+                    for (let i = 0; i < this.currentBargain.config.years; i++) {
+                        const yearSummary = this.getEmptyYearSummary();
+                        yearSummary.year = i + 1;
+                        
+                        const wageProposal = (proposal.costs.wages && proposal.costs.wages[i]) ? proposal.costs.wages[i] : { type: 'percent', value: 0 };
+                        
+                        // 1. Calculate new roster & stats for this year
+                        let currentYearRoster = [];
+                        let totalPayroll = 0;
+                        let totalHours = 0;
+                        let totalFTE = 0;
+                        let totalLumpSum = 0;
+
+                        lastYearRoster.forEach(row => {
+                            let newWage = parseFloat(row.wage) || 0;
+                            const fte = parseFloat(row.fte) || 0;
+                            const hours = parseFloat(row.hours) || 0;
+
+                            if (wageProposal.type === 'percent') {
+                                newWage = newWage * (1 + (parseFloat(wageProposal.value) || 0) / 100);
+                            } else if (wageProposal.type === 'flat') {
+                                newWage = newWage + (parseFloat(wageProposal.value) || 0);
+                            } else if (wageProposal.type === 'lump') {
+                                totalLumpSum += fte * (parseFloat(wageProposal.value) || 0);
+                            }
+                            
+                            currentYearRoster.push({ ...row, wage: newWage });
+                            
+                            totalPayroll += fte * hours * newWage;
+                            totalHours += fte * hours;
+                            totalFTE += fte;
+                        });
+                        
+                        const avgWage = totalHours > 0 ? totalPayroll / totalHours : 0;
+                        const yearStats = { totalFTE, totalHours, totalPayroll, avgWage };
+                        
+                        // 2. Calculate costs based on this year's stats
+                        yearSummary.totalPayroll = totalPayroll + totalLumpSum; // Wage cost IS payroll + lump sum
+                        yearSummary.healthCost = this.calcBenefitCost(proposal.costs.health, yearStats);
+                        yearSummary.pensionCost = this.calcBenefitCost(proposal.costs.pension, yearStats);
+                        yearSummary.otCost = this.calcOtCost(proposal.costs.overtime, currentYearRoster, yearStats.totalHours);
+                        yearSummary.stipendCost = this.calcStipendCost(proposal.costs.stipends, yearStats);
+                        yearSummary.ptoCost = this.calcPtoCost(proposal.costs.pto, currentYearRoster);
+
+                        // 3. Sum total cost
+                        yearSummary.totalCost = yearSummary.totalPayroll +
+                                                yearSummary.healthCost +
+                                                yearSummary.pensionCost +
+                                                yearSummary.otCost +
+                                                yearSummary.stipendCost +
+                                                yearSummary.ptoCost;
+                        
+                        yearlySummaries.push(yearSummary);
+                        lastYearRoster = currentYearRoster; // Compounding for next loop
+                    }
+                    
+                    this._memoizedCalculations.set(cacheKey, yearlySummaries); // Save to cache
+                    return yearlySummaries;
+                },
+                
+                getProposalYearSummary(proposal, year) {
+                    const summaries = this.calculateProposalCost(proposal);
+                    // Ensure summaries is an array before indexing
+                    if (Array.isArray(summaries) && summaries[year - 1]) {
+                        return summaries[year - 1];
+                    }
+                    return this.getEmptyYearSummary();
+                },
+                
+                calculateTotalContractCost(proposal) {
+                    if (!proposal) return 0;
+                    const summaries = this.calculateProposalCost(proposal);
+                    return summaries.reduce((total, year) => total + year.totalCost, 0);
+                },
+                
+                getEmptyYearSummary() {
+                    return { year: 0, totalCost: 0, totalPayroll: 0, healthCost: 0, pensionCost: 0, otCost: 0, stipendCost: 0, ptoCost: 0 };
+                },
+
+                // --- Sub-Calculation Helpers --- //
+                calcBenefitCost(costItem, stats) {
+                    if (!costItem) return 0;
+                    const value = parseFloat(costItem.value) || 0;
+                    if (costItem.type === 'percent') {
+                        return stats.totalPayroll * (value / 100);
+                    } else if (costItem.type === 'hourly') {
+                        return stats.totalHours * value;
+                    } else if (costItem.type === 'monthly') {
+                        return stats.totalFTE * value * 12;
+                    }
+                    return 0;
+                },
+                
+                calcOtCost(otItems, yearRoster, totalHours) {
+                    let totalOtPremiumCost = 0;
+                    if (!otItems) return 0;
+                    const otAssumptions = this.currentBargain.config.otAssumptions;
+                    if (totalHours === 0) return 0;
+                    
+                    otAssumptions.forEach(assumption => {
+                        const proposalItem = otItems.find(item => item.id === assumption.id);
+                        if (!proposalItem) return;
+                        
+                        const multiplier = parseFloat(proposalItem.multiplier) || 0;
+                        const premium = multiplier - 1.0;
+                        if (premium <= 0) return;
+                        
+                        const percentHours = parseFloat(assumption.percentHours) || 0;
+                        
+                        // Calculate cost for each roster row
+                        yearRoster.forEach(row => {
+                            const fte = parseFloat(row.fte) || 0;
+                            const hours = parseFloat(row.hours) || 0;
+                            const wage = parseFloat(row.wage) || 0;
+                            
+                            const otHoursForRow = (fte * hours) * (percentHours / 100);
+                            const otPremiumForRow = otHoursForRow * wage * premium;
+                            totalOtPremiumCost += otPremiumForRow;
+                        });
+                    });
+                    
+                    return totalOtPremiumCost;
+                },
+                
+                calcStipendCost(stipends, stats) {
+                    if (!stipends) return 0;
+                    return stipends.reduce((total, stipend) => total + ((parseFloat(stipend.amount) || 0) * stats.totalFTE), 0);
+                },
+                
+                calcPtoCost(pto, yearRoster) {
+                    if (!pto) return 0;
+                    // This calculates the *total value* of accrued PTO
+                    let totalPtoValue = 0;
+                    const holidays = parseFloat(pto.holidays) || 0;
+                    const vacation = parseFloat(pto.vacation) || 0;
+                    const sick = parseFloat(pto.sick) || 0;
+                    
+                    yearRoster.forEach(row => {
+                        const fte = parseFloat(row.fte) || 0;
+                        const wage = parseFloat(row.wage) || 0;
+                        const ptoHoursPerEE = (holidays * 8) + vacation + sick;
+                        totalPtoValue += (fte * ptoHoursPerEE) * wage;
+                    });
+                    
+                    return totalPtoValue;
+                },
+
+                // --- REPORTING METHODS --- //
+                destroyChart() {
+                    if (this.proposalChart) {
+                        this.proposalChart.destroy();
+                        this.proposalChart = null;
+                        console.log("Chart destroyed.");
+                    }
+                },
+                updateChart() {
+                    if (!this.currentBargain) return;
+                    
+                    const canvas = document.getElementById('proposalChart');
+                    if (!canvas) return; // Don't try to update if element doesn't exist
+                    const ctx = canvas.getContext('2d');
+                    
+                    const employerProposals = this.currentBargain.proposals
+                        .filter(p => p.party === 'Employer')
+                        .sort((a, b) => new Date(a.date) - new Date(b.date));
+                        
+                    const unionProposals = this.currentBargain.proposals
+                        .filter(p => p.party === 'Union')
+                        .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                    const data = {
+                        datasets: [
+                            {
+                                label: 'Employer Proposal (Total Cost)',
+                                data: employerProposals.map(p => ({
+                                    x: new Date(p.date).valueOf(), // Use valueOf() for date-fns adapter
+                                    y: this.calculateTotalContractCost(p)
+                                })),
+                                borderColor: 'rgb(5, 122, 85)',
+                                backgroundColor: 'rgb(5, 122, 85, 0.5)',
+                                fill: false,
+                                tension: 0.1
+                            },
+                            {
+                                label: 'Union Proposal (Total Cost)',
+                                data: unionProposals.map(p => ({
+                                    x: new Date(p.date).valueOf(), // Use valueOf() for date-fns adapter
+                                    y: this.calculateTotalContractCost(p)
+                                })),
+                                borderColor: 'rgb(200, 30, 30)',
+                                backgroundColor: 'rgb(200, 30, 30, 0.5)',
+                                fill: false,
+                                tension: 0.1
+                            }
+                        ]
+                    };
+
+                    // Check if chart instance exists
+                    if (this.proposalChart) {
+                        // Update existing chart
+                        this.proposalChart.data = data;
+                        this.proposalChart.update();
+                    } else {
+                        // Create new chart
+                        this.proposalChart = new Chart(ctx, {
+                            type: 'line',
+                            data: data,
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    x: {
+                                        type: 'time',
+                                        time: {
+                                            unit: 'day',
+                                            tooltipFormat: 'MMM d, yyyy'
+                                        },
+                                        title: {
+                                            display: true,
+                                            text: 'Date'
+                                        }
+                                    },
+                                    y: {
+                                        beginAtZero: false,
+                                        title: {
+                                            display: true,
+                                            text: 'Total Contract Cost'
+                                        },
+                                        ticks: {
+                                            // Format Y-axis as currency
+                                            callback: (value) => this.formatCurrency(value)
+                                        }
+                                    }
+                                },
+                                plugins: {
+                                    tooltip: {
+                                        callbacks: {
+                                            label: (context) => {
+                                                let label = context.dataset.label || '';
+                                                if (label) {
+                                                    label += ': ';
+                                                }
+                                                if (context.parsed.y !== null) {
+                                                    label += this.formatCurrency(context.parsed.y);
+                                                }
+                                                return label;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                },
+                
+                exportToExcel() {
+                    let csvContent = "data:text/csv;charset=utf-8,";
+                    const bargain = this.currentBargain;
+                    const baseline = this.getBaselineProposal();
+                    const employer = this.getLatestProposal('Employer');
+                    const union = this.getLatestProposal('Union');
+                    
+                    csvContent += `Bargain Name,${bargain.name}\r\n`;
+                    csvContent += `Report Date,${new Date().toLocaleDateString()}\r\n\r\n`;
+                    
+                    csvContent += "Cost Item,Year,Current (Baseline),Employer Proposal,Union Proposal\r\n";
+                    
+                    for (let i = 1; i <= bargain.config.years; i++) {
+                        const baselineYear = this.getProposalYearSummary(baseline, i);
+                        const employerYear = this.getProposalYearSummary(employer, i);
+                        const unionYear = this.getProposalYearSummary(union, i);
+                        
+                        csvContent += `Wages (Total Payroll),${i},${baselineYear.totalPayroll},${employerYear.totalPayroll},${unionYear.totalPayroll}\r\n`;
+                        csvContent += `Health Insurance,${i},${baselineYear.healthCost},${employerYear.healthCost},${unionYear.healthCost}\r\n`;
+                        csvContent += `Pension,${i},${baselineYear.pensionCost},${employerYear.pensionCost},${unionYear.pensionCost}\r\n`;
+                        csvContent += `Overtime (Premium),${i},${baselineYear.otCost},${employerYear.otCost},${unionYear.otCost}\r\n`;
+                        // **** THIS IS THE LINE I FIXED ****
+                        csvContent += `Stipends & Allowances,${i},${baselineYear.stipendCost},${employerYear.stipendCost},${unionYear.stipendCost}\r\n`;
+                        csvContent += `Paid Time Off (Liability),${i},${baselineYear.ptoCost},${employerYear.ptoCost},${unionYear.ptoCost}\r\n`;
+                        csvContent += `TOTAL ANNUAL COST,${i},${baselineYear.totalCost},${employerYear.totalCost},${unionYear.totalCost}\r\n`;
+                    }
+                    
+                    // Total Contract
+                    const baselineTotal = this.calculateTotalContractCost(baseline);
+                    const employerTotal = this.calculateTotalContractCost(employer);
+                    const unionTotal = this.calculateTotalContractCost(union);
+                    csvContent += `\r\nTOTAL CONTRACT VALUE,,${baselineTotal},${employerTotal},${unionTotal}\r\n`;
+                    
+                    const encodedUri = encodeURI(csvContent);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", encodedUri);
+                    link.setAttribute("download", `${bargain.name.replace(/ /g, '_')}_Costing.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                },
+                
+                printReport() {
+                    window.print();
+                }
+
+            }; // Closes the main negotiationApp object
+        } // Closes the negotiationApp function
+    </script>
+
+</head>
+
+<body x-data="app" x-init="init()" x-cloak>
+
+    <header class="app-header no-print">
+        <h1>Negotiation Costing</h1>
+        <div class="space-x-2">
+            <span x-show="currentView === 'bargain'" x-text="`Viewing: ${currentBargain?.name || ''}`" style="font-weight: 500;"></span>
+            <button x-show="currentView === 'bargain'" @click="currentView = 'dashboard'; currentBargainId = null; destroyChart()" class="secondary">
+                &larr; Back to Dashboard
+            </button>
+            <button @click="saveData()" title="Save all data">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width: 1.25rem; height: 1.25rem; display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                    <path fill-rule="evenodd" d="M15.85 2.15a1.5 1.5 0 0 1 2 2v11.7a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 2.85 17.35V4.15a1.5 1.5 0 0 1 2-2h11Zm-1.196 9.48a.75.75 0 0 0-1.06-1.06L10 14.19l-1.594-1.594a.75.75 0 0 0-1.06 1.06L9.47 15.25a.75.75 0 0 0 1.06 0l4.22-4.22Z" clip-rule="evenodd" />
+                    <path d="M5.35 2.15a.5.5 0 0 0-.5.5v1.5a.5.5 0 0 0 1 0v-1.5a.5.5 0 0 0-.5-.5Zm-.5 13.2v-1.5a.5.5 0 0 1 1 0v1.5a.5.5 0 0 1-1 0Z" />
+                </svg>
+                Save
+            </button>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <div x-show="currentView === 'dashboard'">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2>Bargaining Dashboard</h2>
+                <button @click="isAddingBargain = true">+ Add New Bargain</button>
+            </div>
+            
+            <div x-show="bargains.length === 0" class="card">
+                <div class="card-content" style="text-align: center; padding: 3rem;">
+                    <h3 style="color: var(--brand-grey);">No bargains found.</h3>
+                    <p>Click "+ Add New Bargain" to get started.</p>
+                </div>
+            </div>
+
+            <template x-for="bargain in bargains" :key="bargain.id">
+                <div class="card bargain-card">
+                    <div>
+                        <h3 @click="viewBargain(bargain.id)" x-text="bargain.name"></h3>
+                        <p class="status">
+                            <span x-text="`Status: ${bargain.status}`"></span> |
+                            <span x-text="`Last Update: ${getLastProposalDate(bargain)}`"></span>
+                        </p>
+                    </div>
+                    <div class="space-x-2">
+                        <button class="secondary" @click="viewBargain(bargain.id)">Open</button>
+                        <button class="danger" @click="deleteBargain(bargain.id)">Delete</button>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <div x-show="currentView === 'bargain' && currentBargain">
+            
+            <div class="tabs no-print">
+                <div class="tab" :class="{'active': bargainViewTab === 'proposals'}" @click="bargainViewTab = 'proposals'; $nextTick(() => updateChart())">Proposals & Costing</div>
+                <div class="tab" :class="{'active': bargainViewTab === 'roster'}" @click="bargainViewTab = 'roster'">Baseline Roster</div>
+                <div class="tab" :class="{'active': bargainViewTab === 'config'}" @click="bargainViewTab = 'config'">Config & Baseline Costs</div>
+            </div>
+
+            <div class="print-header">
+                <h1 x-text="currentBargain.name"></h1>
+                <h2 x-text="`Bargaining Report - ${new Date().toLocaleDateString()}`"></h2>
+            </div>
+
+            <div x-show="bargainViewTab === 'proposals'">
+                
+                <div class="card no-print">
+                    <div class="card-header">
+                        <h3>Reporting</h3>
+                    </div>
+                    <div class="card-content" style="display: flex; gap: 0.5rem;">
+                        <button @click="printReport()" class="secondary">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width: 1.25rem; height: 1.25rem; display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                              <path fill-rule="evenodd" d="M5 2.75C5 1.784 5.784 1 6.75 1h6.5c.966 0 1.75.784 1.75 1.75v3.5a.75.75 0 0 1-1.5 0V3.75a.25.25 0 0 0-.25-.25h-6.5a.25.25 0 0 0-.25.25v3.5a.75.75 0 0 1-1.5 0v-3.5ZM6.25 12a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5h-6a.75.75 0 0 1-.75-.75Zm0 2.5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5h-6a.75.75 0 0 1-.75-.75Z" clip-rule="evenodd" />
+                              <path d="M3 8a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v1a.75.75 0 0 1-1.5 0V8a1.5 1.5 0 0 0-1.5-1.5h-8A1.5 1.5 0 0 0 4.5 8v1a.75.75 0 0 1-1.5 0V8Zm1.22 8.524a.75.75 0 0 0 1.06 0L6 15.793l.72.73a.75.75 0 1 0 1.06-1.06L6.53 14.207a.75.75 0 0 0-1.06 0l-1.25 1.25a.75.75 0 0 0 0 1.06Z" />
+                              <path d="M17.25 10a.75.75 0 0 0-1.5 0v2.5a.75.75 0 0 0 1.5 0v-2.5Z" />
+                              <path d="M3 10.75a.75.75 0 0 1 .75-.75h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1-.75-.75Z" />
+                              <path d="M3 13.25a.75.75 0 0 1 .75-.75h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1-.75-.75Z" />
+                              <path d="M3 15.75a.75.75 0 0 1 .75-.75h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1-.75-.75Z" />
+                              <path d="M14 19a3 3 0 0 0 3-3v-1.25a.75.75 0 0 0-1.5 0V16a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 4.5 16v-1.25a.75.75 0 0 0-1.5 0V16a3 3 0 0 0 3 3h8Z" />
+                            </svg>
+                            Print Summary PDF
+                        </button>
+                        <button @click="exportToExcel()" class="secondary">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width: 1.25rem; height: 1.25rem; display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                              <path d="M10 3.75a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />
+                              <path fill-rule="evenodd" d="M10 0a.75.75 0 0 0-.75.75v1.25h1.5V.75A.75.75 0 0 0 10 0ZM5.64 3.13a.75.75 0 0 0-1.06 1.06l.75.75a.75.75 0 1 0 1.06-1.06l-.75-.75ZM2.75 9.25a.75.75 0 0 0-1.5 0v1.5a.75.75 0 0 0 1.5 0v-1.5ZM4.58 15.61a.75.75 0 1 0-1.06-1.06l-.75.75a.75.75 0 0 0 1.06 1.06l.75-.75ZM9.25 17.25a.75.75 0 0 0 0 1.5h1.5a.75.75 0 0 0 0-1.5h-1.5ZM13.81 16.67a.75.75 0 1 0 1.06-1.06l-.75-.75a.75.75 0 1 0-1.06 1.06l.75.75ZM17.25 10.75a.75.75 0 0 0 1.5 0v-1.5a.75.75 0 0 0-1.5 0v1.5ZM16.67 5.19a.75.75 0 1 0-1.06-1.06l-.75.75a.75.75 0 0 0 1.06 1.06l.75-.75Z" clip-rule="evenodd" />
+                            </svg>
+                            Export to Excel (CSV)
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Latest Proposal Comparison</h3>
+                    </div>
+                    <div class="card-content" style="overflow-x: auto;">
+                        <table class="comparison-table">
+                            <thead>
+                                <tr>
+                                    <th>Cost Item</th>
+                                    <th class="col-baseline">🔵 Current (Baseline)</th>
+                                    <th class="col-employer">🏢 Employer Proposal<br><small x-text="`(${getLatestProposal('Employer')?.date || 'N/A'})`"></small></th>
+                                    <th class="col-union">🤝 Union Proposal<br><small x-text="`(${getLatestProposal('Union')?.date || 'N/A'})`"></small></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="year in currentBargain.config.years">
+                                    <tr>
+                                        <td colspan="4" style="background-color: #f9fafb; font-weight: 700;">
+                                            YEAR <span x-text="year"></span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Wages (Total Payroll)</td>
+                                        <td class="col-baseline" x-text="formatCurrency(getProposalYearSummary(getBaselineProposal(), year).totalPayroll)"></td>
+                                        <td class="col-employer" x-text="formatCurrency(getProposalYearSummary(getLatestProposal('Employer'), year).totalPayroll)"></td>
+                                        <td class="col-union" x-text="formatCurrency(getProposalYearSummary(getLatestProposal('Union'), year).totalPayroll)"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Health Insurance</td>
+                                        <td class="col-baseline" x-text="formatCurrency(getProposalYearSummary(getBaselineProposal(), year).healthCost)"></td>
+                                        <td class="col-employer" x-text="formatCurrency(getProposalYearSummary(getLatestProposal('Employer'), year).healthCost)"></td>
+                                        <td class="col-union" x-text="formatCurrency(getProposalYearSummary(getLatestProposal('Union'), year).healthCost)"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Pension</td>
+                                        <td class="col-baseline" x-text="formatCurrency(getProposalYearSummary(getBaselineProposal(), year).pensionCost)"></td>
+                                        <td class="col-employer" x-text="formatCurrency(getProposalYearSummary(getLatestProposal('Employer'), year).pensionCost)"></td>
+                                        <td class="col-union" x-text="formatCurrency(getProposalYearSummary(getLatestProposal('Union'), year).pensionCost)"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Overtime (Premium)</td>
+                                        <td class="col-baseline" x-text="formatCurrency(getProposalYearSummary(getBaselineProposal(), year).otCost)"></td>
+                                        <td class="col-employer" x-text="formatCurrency(getProposalYearSummary(getLatestProposal('Employer'), year).otCost)"></td>
+                                        <td class="col-union" x-text="formatCurrency(getProposalYearSummary(getLatestProposal('Union'), year).otCost)"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Stipends & Allowances</td>
+                                        <td class="col-baseline" x-text="formatCurrency(getProposalYearSummary(getBaselineProposal(), year).stipendCost)"></td>
+                                        <td class="col-employer" x-text="formatCurrency(getProposalYearSummary(getLatestProposal('Employer'), year).stipendCost)"></td>
+                                        <td class="col-union" x-text="formatCurrency(getProposalYearSummary(getLatestProposal('Union'), year).stipendCost)"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Paid Time Off (Liability)</td>
+                                        <td class="col-baseline" x-text="formatCurrency(getProposalYearSummary(getBaselineProposal(), year).ptoCost)"></td>
+                                        <td class="col-employer" x-text="formatCurrency(getProposalYearSummary(getLatestProposal('Employer'), year).ptoCost)"></td>
+                                        <td class="col-union" x-text="formatCurrency(getProposalYearSummary(getLatestProposal('Union'), year).ptoCost)"></td>
+                                    </tr>
+                                    <tr class="total-row">
+                                        <td>Total Annual Cost</td>
+                                        <td class="col-baseline" x-text="formatCurrency(getProposalYearSummary(getBaselineProposal(), year).totalCost)"></td>
+                                        <td class="col-employer">
+                                            <span x-text="formatCurrency(getProposalYearSummary(getLatestProposal('Employer'), year).totalCost)"></span>
+                                            <div class="cost-increase" x-text="`+${formatCurrency(getProposalYearSummary(getLatestProposal('Employer'), year).totalCost - getProposalYearSummary(getBaselineProposal(), year).totalCost)}`"></div>
+                                        </td>
+                                        <td class="col-union">
+                                            <span x-text="formatCurrency(getProposalYearSummary(getLatestProposal('Union'), year).totalCost)"></span>
+                                            <div class="cost-increase" x-text="`+${formatCurrency(getProposalYearSummary(getLatestProposal('Union'), year).totalCost - getProposalYearSummary(getBaselineProposal(), year).totalCost)}`"></div>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <tr class="total-row" style="border-top: 3px solid var(--brand-dark);">
+                                    <td>TOTAL CONTRACT VALUE</td>
+                                    <td class="col-baseline" x-text="formatCurrency(calculateTotalContractCost(getBaselineProposal()))"></td>
+                                    <td class="col-employer">
+                                        <span x-text="formatCurrency(calculateTotalContractCost(getLatestProposal('Employer')))"></span>
+                                        <div class="cost-increase" x-text="`+${formatCurrency(calculateTotalContractCost(getLatestProposal('Employer')) - calculateTotalContractCost(getBaselineProposal()))}`"></div>
+                                    </td>
+                                    <td class="col-union">
+                                        <span x-text="formatCurrency(calculateTotalContractCost(getLatestProposal('Union')))"></span>
+                                        <div class="cost-increase" x-text="`+${formatCurrency(calculateTotalContractCost(getLatestProposal('Union')) - calculateTotalContractCost(getBaselineProposal()))}`"></div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Negotiation Progress</h3>
+                    </div>
+                    <div class="card-content">
+                        <canvas id="proposalChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Proposal Log</h3>
+                        <button @click="openProposalEditor()">+ Add New Proposal</button>
+                    </div>
+                    <div class="card-content" style="overflow-x: auto;">
+                        <table class="proposal-log-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Party</th>
+                                    <th>Total Contract Cost</th>
+                                    <th>Notes</th>
+                                    <th class="no-print">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="proposal in [...currentBargain.proposals].reverse()" :key="proposal.id">
+                                    <tr>
+                                        <td x-text="proposal.date"></td>
+                                        <td>
+                                            <span x-text="proposal.party" :class="{
+                                                'col-baseline': proposal.party === 'Baseline',
+                                                'col-employer': proposal.party === 'Employer',
+                                                'col-union': proposal.party === 'Union'
+                                            }" style="font-weight: 600;"></span>
+                                        </td>
+                                        <td x-text="formatCurrency(calculateTotalContractCost(proposal))"></td>
+                                        <td class="notes" x-text="proposal.notes"></td>
+                                        <td class="no-print">
+                                            <div class="space-x-2">
+                                                <button class="secondary" @click="openProposalEditor(proposal)">Edit</button>
+                                                <button x-show="proposal.party !== 'Baseline'" class="danger" @click="deleteProposal(proposal.id)">Delete</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div> <div x-show="bargainViewTab === 'roster'" class="card">
+                <div class="card-header">
+                    <h3>Baseline Roster Setup</h3>
+                    <button @click="addRosterRow()">+ Add Classification</button>
+                </div>
+                <div class="card-content">
+                    <p class="mb-4" style="color: var(--brand-grey);">Define the classifications, wages, and headcount for this bargaining unit. This is the baseline all proposals will be calculated against.</p>
+                    <table class="proposal-log-table">
+                        <thead>
+                            <tr>
+                                <th>Classification Name</th>
+                                <th>Current Hourly Wage</th>
+                                <th># of Employees</th>
+                                <th>Avg. Annual Hours / ee</th>
+                                <th class="no-print">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(row, index) in currentBargain.config.baselineRoster" :key="row.id">
+                                <tr>
+                                    <td><input type="text" x-model="row.name" placeholder="e.g., Mechanic II"></td>
+                                    <td><input type="number" x-model.number="row.wage" min="0" step="0.01"></td>
+                                    <td><input type="number" x-model.number="row.fte" min="0" step="1"></td>
+                                    <td><input type="number" x-model.number="row.hours" min="0"></td>
+                                    <td class="no-print"><button class="danger" @click="removeRosterRow(index)">Remove</button></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div class="text-right mt-4" style="font-size: 1.2rem; font-weight: 600;">
+                        <div>Total FTE: <span x-text="getBaselineStats().totalFTE"></span></div>
+                        <div>Total Annual Hours: <span x-text="getBaselineStats().totalHours.toLocaleString()"></span></div>
+                        <div>Total Baseline Payroll: <span x-text="formatCurrency(getBaselineStats().totalPayroll)"></span></div>
+                    </div>
+                </div>
+            </div> <div x-show="bargainViewTab === 'config'" class="card">
+                <div class="card-header">
+                    <h3>Configuration & Baseline Costs</h3>
+                </div>
+                <div class="card-content grid">
+                    <div>
+                        <div class="card">
+                            <div class="card-header"><h4>General Config</h4></div>
+                            <div class="card-content">
+                                <div class="form-group">
+                                    <label for="bargainName">Bargain Name</label>
+                                    <input type="text" id="bargainName" x-model="currentBargain.name">
+                                </div>
+                                <div class="form-group">
+                                    <label for="bargainStatus">Bargain Status</label>
+                                    <select id="bargainStatus" x-model="currentBargain.status">
+                                        <option>Prepping</option>
+                                        <option>In Progress</option>
+                                        <option>Ratified</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="contractYears">Contract Duration (1-6 Years)</label>
+                                    <input type="number" id="contractYears" x-model.number="currentBargain.config.years" min="1" max="6" step="1">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mt-4">
+                            <div class="card-header">
+                                <h4>Baseline Overtime Assumptions</h4>
+                                <button @click="addOtAssumption()">+ Add OT Category</button>
+                            </div>
+                            <div class="card-content">
+                                <template x-for="(ot, index) in currentBargain.config.otAssumptions" :key="ot.id">
+                                    <div class="form-row mb-4">
+                                        <input type="text" x-model="ot.name" placeholder="e.g., Time-and-a-Half">
+                                        <input type="number" x-model.number="ot.percentHours" min="0" step="0.1">
+                                        <span>% of Total Hours</span>
+                                        <button class="danger fixed" @click="removeOtAssumption(index)">X</button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="card">
+                            <div class="card-header"><h4>Baseline Proposal Costs</h4></div>
+                            <div class="card-content">
+                                <p class="mb-4" style="color: var(--brand-grey);">Set the costs for the *current* (baseline) contract.</p>
+                                <div x-data="{ baseline: getBaselineProposal() }" x-init="$watch('currentBargain', () => baseline = getBaselineProposal())">
+                                    <div x-show="baseline">
+                                        <div class="form-group">
+                                            <label>Health Insurance (Current)</label>
+                                            <div class="form-row">
+                                                <select x-model="baseline.costs.health.type">
+                                                    <option value="percent">Percentage of Payroll</option>
+                                                    <option value="hourly">Per Hour Contribution</option>
+                                                    <option value="monthly">Monthly Flat Rate</option>
+                                                </select>
+                                                <input type="number" x-model.number="baseline.costs.health.value">
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Pension (Current)</label>
+                                            <div class="form-row">
+                                                <select x-model="baseline.costs.pension.type">
+                                                    <option value="percent">Percentage of Payroll</option>
+                                                    <option value="hourly">Per Hour Contribution</option>
+                                                    <option value="monthly">Monthly Flat Rate</option>
+                                                </select>
+                                                <input type="number" x-model.number="baseline.costs.pension.value">
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Paid Time Off (Current)</label>
+                                            <div class="form-row">
+                                                <div><label class="mt-1">Holidays (Days)</label><input type="number" x-model.number="baseline.costs.pto.holidays"></div>
+                                                <div><label class="mt-1">Vacation (Avg. Hours/Yr)</label><input type="number" x-model.number="baseline.costs.pto.vacation"></div>
+                                                <div><label class="mt-1">Sick (Avg. Hours/Yr)</label><input type="number" x-model.number="baseline.costs.pto.sick"></div>
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Overtime Multipliers (Current)</label>
+                                            <template x-for="ot in baseline.costs.overtime" :key="ot.id">
+                                                <div class="form-row mb-4">
+                                                    <input type="text" x-model="ot.name" disabled style="background: #eee;">
+                                                    <input type="number" x-model.number="ot.multiplier" step="0.1">
+                                                    <span>x Multiplier</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Stipends & Allowances (Current)</label>
+                                            <template x-for="(stipend, index) in baseline.costs.stipends" :key="stipend.id">
+                                                <div class="form-row mb-4">
+                                                    <input type="text" x-model="stipend.name" placeholder="e.g., Uniforms">
+                                                    <input type="number" x-model.number="stipend.amount" min="0">
+                                                    <span>$ /ee /year</span>
+                                                    <button class="danger fixed" @click="baseline.costs.stipends.splice(index, 1)">X</button>
+                                                </div>
+                                            </template>
+                                            <button class="secondary" @click="baseline.costs.stipends.push({ id: Date.now(), name: '', amount: 0 })">+ Add Stipend</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div> </div>
+
+        <div x-show="isAddingBargain" class="modal-overlay" @click.self="isAddingBargain = false">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Add New Bargain</h3>
+                    <button @click="isAddingBargain = false" class="secondary" style="min-width: 40px;">X</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="newBargainName">Bargaining Unit Name</label>
+                        <input type="text" id="newBargainName" x-model="newBargain.name" placeholder="e.g., Local 101 (Mechanics)">
+                    </div>
+                    <div class="form-group">
+                        <label for="newBargainYears">Contract Duration (Years)</label>
+                        <input type="number" id="newBargainYears" x-model.number="newBargain.years" min="1" max="6" step="1">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="secondary" @click="isAddingBargain = false">Cancel</button>
+                    <button @click="addNewBargain()">Create Bargain</button>
+                </div>
+            </div>
+        </div>
+        
+        <div x-show="editingProposal" class="modal-overlay" @click.self="editingProposal = null">
+            <div class="modal-content" x-show="editingProposal">
+                <div class="modal-header">
+                    <h3 x-text="editingProposal.id ? 'Edit Proposal' : 'Add New Proposal'"></h3>
+                    <button @click="editingProposal = null" class="secondary" style="min-width: 40px;">X</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Party</label>
+                            <select x-model="editingProposal.party">
+                                <option>Employer</option>
+                                <option>Union</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Proposal Date</label>
+                            <input type="date" x-model="editingProposal.date">
+                        </div>
+                    </div>
+                    <hr class="mb-4">
+                    
+                    <div class="tabs">
+                        <div class="tab" :class="{'active': proposalTab === 'wages'}" @click="proposalTab = 'wages'">Wages</div>
+                        <div class="tab" :class="{'active': proposalTab === 'health'}" @click="proposalTab = 'health'">Health/Pension</div>
+                        <div class="tab" :class="{'active': proposalTab === 'other'}" @click="proposalTab = 'other'">OT, PTO & Stipends</div>
+                    </div>
+
+                    <div x-show="proposalTab === 'wages'">
+                        <h4>Wage Increases by Year</h4>
+                        <template x-for="(year, index) in editingProposal.costs.wages" :key="index">
+                            <div class="form-group">
+                                <label x-text="`Year ${index + 1}`"></label>
+                                <div class="form-row">
+                                    <select x-model="year.type">
+                                        <option value="percent">% Increase (ATB)</option>
+                                        <option value="flat">$ Increase (per Hour)</option>
+                                        <option value="lump">Lump Sum (per FTE)</option>
+                                    </select>
+                                    <input type="number" x-model.number="year.value" step="0.01">
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div x-show="proposalTab === 'health'">
+                        <div class="form-group">
+                            <label>Health Insurance Proposal</label>
+                            <div class="form-row">
+                                <select x-model="editingProposal.costs.health.type">
+                                    <option value="percent">Percentage of Payroll</option>
+                                    <option value="hourly">Per Hour Contribution</option>
+                                    <option value="monthly">Monthly Flat Rate</option>
+                                </select>
+                                <input type="number" x-model.number="editingProposal.costs.health.value">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Pension Proposal</label>
+                            <div class="form-row">
+                                <select x-model="editingProposal.costs.pension.type">
+                                    <option value="percent">Percentage of Payroll</option>
+                                    <option value="hourly">Per Hour Contribution</option>
+                                    <option value="monthly">Monthly Flat Rate</option>
+                                </select>
+                                <input type="number" x-model.number="editingProposal.costs.pension.value">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div x-show="proposalTab === 'other'">
+                        <div class="form-group">
+                            <label>Paid Time Off Proposal</label>
+                            <div class="form-row">
+                                <div><label class="mt-1">Holidays (Days)</label><input type="number" x-model.number="editingProposal.costs.pto.holidays"></div>
+                                <div><label class="mt-1">Vacation (Avg. Hours/Yr)</label><input type="number" x-model.number="editingProposal.costs.pto.vacation"></div>
+                                <div><label class="mt-1">Sick (Avg. Hours/Yr)</label><input type="number" x-model.number="editingProposal.costs.pto.sick"></div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Overtime Multipliers Proposal</label>
+                            <template x-for="ot in editingProposal.costs.overtime" :key="ot.id">
+                                <div class="form-row mb-4">
+                                    <input type="text" x-model="ot.name" disabled style="background: #eee;">
+                                    <input type="number" x-model.number="ot.multiplier" step="0.1">
+                                    <span>x Multiplier</span>
+                                </div>
+                            </template>
+                        </div>
+                        <div class="form-group">
+                            <label>Stipends & Allowances Proposal</label>
+                            <template x-for="(stipend, index) in editingProposal.costs.stipends" :key="stipend.id">
+                                <div class="form-row mb-4">
+                                    <input type="text" x-model="stipend.name" placeholder="e.g., Uniforms">
+                                    <input type="number" x-model.number="stipend.amount" min="0">
+                                    <span>$ /ee /year</span>
+                                    <button class="danger fixed" @click="editingProposal.costs.stipends.splice(index, 1)">X</button>
+                                </div>
+                            </template>
+                            <button class="secondary" @click="editingProposal.costs.stipends.push({ id: Date.now(), name: '', amount: 0 })">+ Add Stipend</button>
+                        </div>
+                    </div>
+
+                    <hr class="mt-4 mb-4">
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea x-model="editingProposal.notes" rows="3" placeholder="Add notes for this proposal..."></textarea>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button class="secondary" @click="editingProposal = null">Cancel</button>
+                    <button @click="saveProposal()">Save Proposal</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+</body>
+</html>
